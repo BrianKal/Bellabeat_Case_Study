@@ -1,0 +1,417 @@
+---
+title: "Bellabeat Case Study"
+author: "Brian Kalyuzhny"
+date: "2023-09-28"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+options(repos = "https://cran.rstudio.com/")
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction
+
+Hello! My name is Brian Kalyuzhny and I want to welcome you to my case study of Bellabeat which I'm doing as part of my Capstone for the Google Data Analytics Certificate. I will be stepping into the role of a junior data analyst at Bellabeat, a wellness company that manufactures health-focused products for women. I will take you through my journey as I go through the six stages of the data analysis process.
+
+# Ask
+
+The CCO of Bellabeat, Urska Srsen, has asked me to analyze smart device usage data from non-Bellabeat devices and apply some of my insights to their products. I will introduce some of these products in a later step when I make my recommendations. 
+
+Here are some questions that will guide my analysis:
+
+* What are some trends in smart device usage?
+* How could these trends apply to Bellabeat customers?
+* How could these trends help influence Bellabeat's marketing strategy?
+
+# Prepare
+
+I will be using a data from 33 consenting fitbit users for my analysis. Fitbit is a wearable smart device that tracks the users daily activity, exercise, sleep, and much more. The dataset I'll be using can be found [here](https://www.kaggle.com/datasets/arashnic/fitbit/).
+
+The dataset contains 18 different csv files, but the main two I will be focusing on in my analyis are "dailyActivity_merged.csv" and "sleepDay_merged.csv". Let's take a closer look at these datasets.
+
+### How is the data organized?
+
+Both of these datasets have a wide format, where each variable has its own column and each row is a different observation for a specific date and user. I opened each dataset in a spreadsheet to take a closer look, and here is the type of data each contains:
+
+* **dailyActivity_merged.csv:** Contains daily activity and fitness tracking data from 33 fitbit users, including step counts, distance traveled, time active, time sedentary, and calories burned.
+
+* **sleepDay_merged.csv:** Contains information about sleep patterns from 24 of the fitbit users, including minutes spent sleeping and minutes spent in bed.
+
+### Does the data ROCCC?
+
+Seeing if our data ROCCC's means determining if there are issues with bias or credibility in the data. ROCCC stands for:
+
+* Reliability
+* Originality
+* Comprehensibility
+* Currency
+* Citation
+
+Let's evaluate each of these separately and rank them on a scale from 1-10.
+
+#### Reliability
+
+Reliable data is accurate, complete, and unbiased information that is fit for use. Looking at our datasets, we can tell that they do have a few issues. In the dailyActivity dataset, two columns, "LoggedActivitiesDistance" and "SedentaryActiveDistance", have the value 0 in many rows. This could be a sign that the data isn't complete, and the 0's may be placeholder for null values. As for accuracy, it mostly depends on how accurate the fitbit smart device is. If we are assuming that fitbit's have a high degree of accuracy, than we can safely say that our datset is mostly accurate. The only data I see that is clearly inaccurate is the "TotalSleepRecords" column in the sleepDay dataset. The sleep records aren't being tracked properly, with users having many "first" records. We can safely say that this data is unbiased since it is being taken by a smart device.
+
+Overall, we can rate the reliability of this data as **6.5/10**
+
+#### Originality
+
+Original data is data that is collected from the original source. Unfortunately, our data is from a third-party source and was collected via Amazon Mechanical Turk, so the originality level is low. 
+
+**3/10**
+
+#### Comprehensibility
+
+Comprehensive data contains all critical information needed to answer a question or find a solution. Our data has a lot of useful information that we can use for our analysis, including a breakdown of how active the user was during their activity. This is a very comprehensive dataset.
+
+**9/10**
+
+#### Currency
+
+Currency doesn't refer to money, but rather how current our data is. The data is from 03/12/2016 - 05/12/2016, which (at the time of this writing) is over 7 years ago. While this data is definitely outdated for these specific users, the general analysis about people that this data can provide is not outdated.
+
+**7/10**
+
+#### Citation
+
+Cited data tells us where it came from and increases the credibility of the data. When we look at the dataset on Kaggle, we are told where the data came from, the inspiration for the data, acknowledgements, and associated readings. While there could be some more information, such as who collected the data, the citations are fairly comprehensive.
+
+**8/10**
+
+# Process
+
+Before analyzing the data, I have to choose my tools and clean the data. I have chosen to use the R programming language and its IDE, RStudio. R is an extremely useful programming language that gives us tools for data cleaning, analysis, and visualization. R has a variety of different packages that makes these processes even easier and give us even more capabilities. It is a very powerful tool.
+
+Let's install some packages that will help us complete the rest of the steps.
+
+```{r installing packages, message=FALSE, warning=FALSE}
+install.packages("tidyverse")
+install.packages("lubridate")
+install.packages("ggplot2")
+install.packages("tidyr")
+install.packages("readr")
+install.packages("dplyr")
+install.packages("janitor")
+```
+
+Now let's load all these packages into our R session.
+
+```{r load packages, message=FALSE, warning=FALSE}
+library("tidyverse")
+library("lubridate")
+library("ggplot2")
+library("tidyr")
+library("readr")
+library("dplyr")
+library("janitor")
+```
+
+To get the datasets into their own dataframe, we will run the following code:
+
+```{r create df, message=FALSE, warning=FALSE}
+dailyActivity <- read_csv("Fitabase Data 4.12.16-5.12.16/dailyActivity_merged.csv")
+sleepDay <- read_csv("Fitabase Data 4.12.16-5.12.16/sleepDay_merged.csv")
+```
+
+Now that this data is loaded, let's take a look at its contents. First, I want to look at the column names and see if they're written well. If the column names have spaces or have random letters capitalized, it can cause problems later on.
+
+```{r colnames dailyActivity}
+colnames(dailyActivity)
+```
+
+```{r colnames sleepDay}
+colnames(sleepDay)
+```
+
+As you can see, none of the column names have spaces and the only capital letters are for each new word. I am satisfied with these column names and won't change them.
+
+Next, I will look at the data and dataypes in each column.
+
+```{r glimpse dailyActivity}
+glimpse(dailyActivity)
+```
+
+```{r glimpse sleepDay}
+glimpse(sleepDay)
+```
+
+The letters in between <> to the left of the data shows the data type. ``<dbl>`` represents a double, or a number with a decimal, and ``<chr>`` represents a character or string. The data represented by numbers has the correct datatype. However, the date columns shouldn't be ``<chr>`` datatypes, but rather date datatypes. Let's fix this now.
+
+```{r date datatype}
+dailyActivity$ActivityDate <- mdy(dailyActivity$ActivityDate)
+sleepDay <- sleepDay %>%
+  mutate(
+    Date = as.Date(mdy_hms(SleepDay))
+  ) %>% 
+  select(-SleepDay)
+```
+
+Something that was confusing in the sleepDay dataset is that there is a column that's called "SleepDay". The column being the same name as the dataframe can definitely cause some confusion, so I wanted to change this. Since the "SleepDay" column contained a date and time, I took the liberty of removing time from the data and renaming the column to "Date". The time was 12:00:00 AM for every row, so since it's consistent we could get rid of it. To keep the column names consistent, I will change the "ActivityDate" column in dailyActivity to just "Date".
+
+```{r rename ActivityDate}
+dailyActivity <- dailyActivity %>% 
+  rename(Date = ActivityDate)
+```
+
+Now when we look at the dataframes, we should see the correct datatypes.
+
+```{r glimpse2 dailyActivity}
+glimpse(dailyActivity)
+```
+
+```{r glimpse2 sleepDay}
+glimpse(sleepDay)
+```
+
+As you can see, the new datatype for the "Date" columns is now ``<date>``, which is exactly what we wanted.
+
+At this point I've cleaned all the data I can without modifying it, but there is some more cleaning to be done. For the rest of the data cleaning, I will create new dataframes for our data so that our originals don't get modified.
+
+```{r newdf}
+activity <- dailyActivity
+sleep <- sleepDay
+```
+
+Since we already established that the "TotalSleepRecords" weren't being tracked correctly, I will remove this column.
+
+```{r remove TotalSleepRecords}
+sleep <- sleep %>%
+  select(-TotalSleepRecords)
+```
+
+I took a look at the activity dataframe in an excel file and noticed that for most rows, the "LoggedActivitiesDistance" column is 0, but there are some that aren't 0. The rows where this column isn't 0 are also the rows that "TotalDistance" and "TrackerDistance" differ. Since there are no descriptions of the columns, I have to use my own assumptions. "LoggedActivitiesDistance" is most likely the distance that the user manually logged. I assumed this would mean that ``TotalDistance = TrackerDistance + LoggedActivitiesDistance``, but this wasn't the case. This leads me to believe that the fitbit recognized some of the manually logged activity but not all of it, so the difference between the "TotalDistance" and the "TrackerDistance" is just the distance that the fitbit didn't pick up on. For the sake of our analysis, I will be using the "TotalDistance" column, so I will drop the other two.
+
+```{r Remove TrackerDistance & LoggedActivitiesDistance}
+activity <- activity %>%
+  select(-TrackerDistance, -LoggedActivitiesDistance)
+```
+
+The "SedentaryActiveDistance" column is also one that we don't need. There are very few rows where this value is above 0, with its peak being 0.07. After all, being sedentary does mean sitting and not moving, and staying still doesn't have any distance associated with it.
+
+```{r Remove SedentaryActiveDistance}
+activity <- activity %>%
+  select(-SedentaryActiveDistance)
+```
+
+Something that might make our data visualizations look weird in our analysis phase is the value of the Id column being so high. Let's change these from 1:33.
+
+```{r Change Id}
+map <- activity %>% 
+  distinct(Id) %>% 
+  arrange(Id) %>% 
+  mutate(newId = dense_rank(Id))
+activity <- merge(activity, map, by="Id", all.x = TRUE)
+sleep <- merge(sleep, map, by="Id", all.x = TRUE)
+```
+
+```{r Replace Id}
+activity <- activity %>%
+  select(-Id)
+sleep <- sleep %>%
+  select(-Id)
+activity <- activity %>% 
+  rename(Id = newId)
+sleep <- sleep %>% 
+  rename(Id = newId)
+```
+
+
+Let's take a look at our dataframes one last time.
+
+```{r glimpse3 dailyActivity}
+glimpse(activity)
+```
+
+```{r glimpse3 sleepDay}
+glimpse(sleep)
+```
+
+Now that our data is clean, we can move on to the next phase.
+
+# Analyze
+
+First, I want to look at these two datasets separately to see what I can find out from them, and then I can look at them together and see if I can have even more findings. I'll start with the sleep dataframe, since it has less columns.
+
+I want to look at the correlation between TotalTimeInBed and TotalMinutesAsleep. My hypothesis is that the more time you spend in bed not sleeping, the less sleep you will get. Let's test this theory.
+
+```{r}
+correlation <- cor(sleep$TotalTimeInBed - sleep$TotalMinutesAsleep, sleep$TotalMinutesAsleep)
+print(correlation)
+```
+
+Since the correlation is so close to 0, my hypothesis was wrong and there isn't any relationship between minutes spent in bed no sleeping and minutes spent sleeping. We can plot the data to confirm these findings.
+
+```{r}
+ggplot(data = sleep, aes(x = TotalTimeInBed - TotalMinutesAsleep, y = TotalMinutesAsleep)) + geom_point(color = "blue") + labs(title = "Relationship Between Time in Bed (Not Sleeping) and Sleep Duration", x = "Time in Bed (Not Sleeping)", y = "Total Minutes Asleep")
+```
+
+There isn't much else to see in this data by itself, so let's move on and look at the activity data frame.
+
+We can visualize the correlation between steps taken and calories burned, which should be highly correlated.
+
+```{r}
+correlation <- cor(activity$TotalSteps, activity$Calories)
+print(correlation)
+```
+
+A correlation of 0.59 isn't as strong as I thought it would be, but it's still a moderate correlation that tells us there is definitely a relationship between the two. We can plot it to see the relationship more clearly.
+
+```{r}
+ggplot(activity, aes(x = TotalSteps, y = Calories)) + geom_point(color = "red") + geom_smooth() + labs(x = "Total Steps", y = "Calories Burned", title = "Scatterplot of Total Steps vs. Calories Burned")
+```
+
+The reason this correlation might not be as strong as expected is because there are different activity intensities which may effect calorie burning. Let's look at the correlation between VeryActiveMinutes and Calories.
+
+```{r}
+correlation <- cor(activity$VeryActiveMinutes, activity$Calories)
+print(correlation)
+```
+
+```{r}
+ggplot(activity, aes(x = VeryActiveMinutes, y = Calories)) + geom_point(color = "red") + geom_smooth() + labs(x = "Very Active Minutes", y = "Calories Burned", title = "Scatterplot of Very Active Minutes vs. Calories Burned")
+```
+
+Now let's see the correlation between Sedentary Minutes and Calories and compare the two.
+
+```{r}
+correlation <- cor(activity$SedentaryMinutes, activity$Calories)
+print(correlation)
+```
+
+```{r}
+ggplot(activity, aes(x = SedentaryMinutes, y = Calories)) + geom_point(color = "red") + labs(x = "Sedentary Minutes", y = "Calories Burned", title = "Scatterplot of Sedentary Minutes vs. Calories Burned")
+```
+
+The graphs and correlations showed me exactly what I expected. The more time a user spend being very active, the more calories they burn off. There is very little correlation between being sedentary and calories burned, meaning time spent being sedentary doesn't affect calories burned. Knowing that being active leads to burning more calories is a great point that we should keep in mind for our next steps.
+
+Now let's combine the two dataframes into one to further our analysis.
+
+```{r}
+merged_df <- inner_join(sleep, activity, by = c("Id","Date"))
+```
+
+We can take a look at our new df to make sure that it was merged properly.
+
+```{r}
+glimpse(merged_df)
+```
+
+I now want to take a look at whether activity and sleep have a correlation. My hypothesis is that getting better sleep 
+
+```{r}
+correlation <- cor(merged_df$TotalSteps, merged_df$TotalMinutesAsleep)
+print(correlation)
+```
+
+```{r}
+library(ggplot2)
+ggplot(merged_df, aes(x = TotalSteps, y = TotalMinutesAsleep)) + geom_point(color = "green") + labs(x = "Total Steps", y = "Total Minutes Asleep") + ggtitle("Scatter Plot of Total Steps vs Total Minutes Asleep")
+```
+
+Surprisingly, there is a very small correlation between the two. Let's compare by Date and total active minutres and see if we get a different result.
+
+```{r}
+ggplot(data = merged_df, aes(x = Date, y = TotalMinutesAsleep)) + geom_smooth(aes(color = "Total Minutes Asleep")) + geom_smooth(method = "loess", se = FALSE, aes(x = Date, y = VeryActiveMinutes + FairlyActiveMinutes+LightlyActiveMinutes, color = "Total Active Minutes")) + labs(x = "Date", y = "Minutes") + ggtitle("Total Minutes Asleep vs. Total Active Minutes Over Time") + scale_color_manual(values = c("Total Minutes Asleep" = "blue", "Total Active Minutes" = "red"))
+```
+
+Surprisingly, we see that when Total Active Minutes is higher, Total Minutes Asleep is slightly lower, and vice versa. There could be many reasons for this, users could be waking up early to exercise, being more active allows people to need less sleep, or even that activity simply makes your sleep worse. Howeverm without further evidence it's impossible to get a definitive answer.
+
+The last thing I want to see is whether being sedentary has any effect on your sleep. Since SedentaryMinutes includes the time you spend in bed, I will subtract that to just look at the time a person is truly sedentary vs. their sleep. To clarify, ``Truly Sedentary = SedentaryMinutes - TotalTimeInBed``Let's look at the correlation.
+
+```{r}
+correlation <- cor(merged_df$TotalMinutesAsleep, merged_df$SedentaryMinutes - merged_df$TotalTimeInBed)
+print(correlation)
+```
+
+Wow! There is a very strong negative correlation between the two, -0.82. Let's plot Total Minutes Asleep over Truly Sedentary time and visualize the correlation.
+
+```{r}
+ggplot(merged_df, aes(x = SedentaryMinutes - TotalTimeInBed, y = TotalMinutesAsleep)) + geom_point(color = "purple") + geom_smooth(color = "red") + labs(x = "Truly Sedentary Minutes", y = "Total Minutes Asleep") + ggtitle("Scatter Plot of Total Minutes Asleep vs Truly Sedentary Minutes")
+```
+
+It's clear that the more time a person spends being sedentary the less amount of sleep they get. This means that staying active and not being stationary is important for good quality sleep, which is a very important finding. We are almost at the end. Let's now continue onto the next phase.
+
+# Share
+
+Now that we're in the Share phase, let's look back at our guiding questions from the very first phase.
+
+* What are some trends in smart device usage?
+* How could these trends apply to Bellabeat customers?
+* How could these trends help influence Bellabeat's marketing strategy?
+
+Throughout my analysis, I was able to find two main trends in smart device usage that could be applied to Bellabeat customers and that could influence Bellabeat's marketing strategy. To share my findings to stakeholders, I would normally create a PowerPoint presentation using either R or Tableau visualizations to share my findings. However, due to me doing this entire case study on R Markdown I won't be sharing my findings in a presentation and will instead just do a brief conclusion below.
+
+### Does activity affect calories burned?
+
+One hypothesis I wanted to test was that your activity level is directly correlated to the amount of calories you burn. First, I used the following formula to find the correlation between total steps taken and calories burned.
+
+```{r}
+correlation <- cor(activity$TotalSteps, activity$Calories)
+print(correlation)
+```
+
+The correlation was about 0.59, meaning that there is a fairly strong positive correlation between the two variables. Below is the graph to visualize this relationship.
+
+```{r echo=FALSE}
+ggplot(activity, aes(x = TotalSteps, y = Calories)) + geom_point(color = "red") + geom_smooth() + labs(x = "Total Steps", y = "Calories Burned", title = "Scatterplot of Total Steps vs. Calories Burned")
+```
+
+As we can see, it is clear that the more steps a person takes the more calories they burn. To further dive into this analysis, I looked at the correlation between the time a person is very active vs. calories burned. I used a similar formula as before:
+
+```{r}
+correlation <- cor(activity$VeryActiveMinutes, activity$Calories)
+print(correlation)
+```
+
+As we can see, the positive correlation is even stronger, so an intense workout definitely leads to more calories burned. Let's take a look at the graph for this correlation as well.
+
+```{r echo=FALSE}
+ggplot(activity, aes(x = VeryActiveMinutes, y = Calories)) + geom_point(color = "red") + geom_smooth() + labs(x = "Very Active Minutes", y = "Calories Burned", title = "Scatterplot of Very Active Minutes vs. Calories Burned")
+```
+
+### Does inactivity affect sleep quality?
+
+Another one of my hypotheses that was proven during my analysis was that the more time a person spends being sedentary, the less amount of sleep they get. Since the average adult requires between 7 and 9 hours of sleep a night, being sedentary and getting less sleep than necessary could be detrimental to a person's health and quality of life. In our dataset, we had columns for SedentaryMinutes, TotalMinutesAsleep, and TotalTimeInBed. Sedentary minutes refers to the amount of minutes a person spent being inactive, which should include the time spent in bed. For my analysis, I wanted to use the difference between SedentaryMinutes and TotalTimeInBed, which I will refer to as Truly Sedentary Minutes. I again looked at the correlation, and the results were shocking.
+
+```{r}
+correlation <- cor(merged_df$TotalMinutesAsleep, merged_df$SedentaryMinutes - merged_df$TotalTimeInBed)
+print(correlation)
+```
+
+As you can see, there is a very strong negative correlation between truly sedentary time and sleep time. This leads me to believe that the more time a person spends being inactive, the worse their quality of sleep will be. To show just how much this correlation holds true, below is the graph of this correlation.
+
+```{r echo=FALSE}
+ggplot(merged_df, aes(x = SedentaryMinutes - TotalTimeInBed, y = TotalMinutesAsleep)) + geom_point(color = "purple") + geom_smooth(color = "red") + labs(x = "Truly Sedentary Minutes", y = "Total Minutes Asleep") + ggtitle("Scatter Plot of Total Minutes Asleep vs Truly Sedentary Minutes")
+```
+
+# Act
+
+What can Bellabeat do with these new conclusions? Before I make some recommendations, let's look at some of Bellabeat's products to better understand where our changes will be applied.
+
+* **Leaf** - Bellabeat’s classic wellness tracker, which can be worn as a bracelet, necklace, or clip. The Leaf tracker connects to the Bellabeat app to track activity, sleep, and stress.
+* **Time** - This is a wellness smart watch that can track user activity, sleep, and stress. The Time watch connects to the Bellabeat app to provide you with insights into your daily wellness.
+* **Bellabeat App** - The Bellabeat app connects to their line of smart wellness products to provide them with all their tracked health data.
+
+Now that we know what each product does and how the data they track is conveyed to the user, I'll make some recommendations on changes Bellabeat should make. 
+
+### Fun Facts About Wellness
+
+Each time the user opens the Bellabeat app, a new fun fact should pop up in the app giving the user a wellness tip. There was a lot of interesting information I found out about during my analysis that I didn't know before, and letting users know this in a fun way can be very beneficial to their health. For example, not many people know that inactivity can affect your sleep quality, and this is an example of fun fact that could be given to the user to help them change their lifestyle. 
+
+### Recommendations
+
+Giving users a vast amount of data that they can look at can be very useful, but many of them don't know what to do with it. This is where recommendations come in. When the smart devices detect that a person has been sedentary for too long, the users will get a notification with a recommendation to do some physical activity. If the user puts information into the app on wake-up times throughout the week, they can get a recommendation on when they should go to sleep. If a user sets a goal for themselves for the amount of calories they want to burn a day, they will get a recommendation telling them approximately how many more steps they need to take to achieve their goal for the day. There are many different recommendations that the Bellabeat app can provide, and exploring all of them is definitely a great idea!
+
+### Calories Gained Input
+
+The Bellabeat app should also allow users to input their meals throughout the day and the amount of calories they ate. This way, users can make an easy comparison to how many calories they burnt vs. how many calories they took in. This can help users who have a weight loss goal, as it can let them know how many calories they should take in or how much more active they should be.
+
+### Sleep Rating
+
+The Bellabeat app should allow users to input their sleep rating on a scale of 1-10 after each night. This way, the app can recognize approximately how much sleep that user requires and can make recommendations on what time they should go to sleep based on when they need to wake up. There can be an option on the app that blocks the user from opening social media and other selected apps after the recommended time to go to sleep has passed. This can help users fall asleep instead of staying up on their phones.
+
+# Conclusion
+
+Thank you for coming on this data analysis journey with me through the Bellabeat Case Study. I'm so thrilled to finish up this last step of the Google Data Analytics Professional Certificate and see all my hard work throughout the course pay off and culminate in this final project. I'm extremely excited to see where my data analytics journey takes me to next!
